@@ -11,6 +11,7 @@ export function createApp(): express.Express {
   const app = express();
   app.use(cors({ origin: "http://localhost:5173" }));
   app.use(express.json());
+  app.get("/health", (_req, res) => res.status(200).json({ status: "ok" }));
   app.use("/session", sessionRoutes);
   app.use("/session", answerRoutes);
   app.use("/session", retryRoutes);

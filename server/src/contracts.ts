@@ -1,7 +1,7 @@
 export type NextAction = "ask_follow_up" | "finalize_question";
 export type FollowUpType = "elaborate_generic" | "personal_action" | "specific_detail" | "clarify_relevance" | null;
 export type Category = "Excellent" | "Good" | "Satisfactory" | "Needs Work";
-export type Evaluator = "nemotron" | "fallback_rules";
+export type Evaluator = "gemini" | "fallback_rules";
 export type TranscriptSource = "stt" | "browser_stt" | "human_confirmed";
 
 export interface LevelUpTip { title: string; detail: string; }

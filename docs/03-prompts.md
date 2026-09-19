@@ -1,12 +1,12 @@
 # 03 — Prompts & Model Configs
 
-> Every prompt copy-paste ready. Single source of truth in code: `server/src/prompts/nemotronPrompts.ts`.
+> Every prompt copy-paste ready. Single source of truth in code: `server/src/prompts/feedbackPrompts.ts`.
 
-## Nemotron: probe-or-finalize (one call per candidate turn)
+## Gemini: probe-or-finalize (one call per candidate turn)
 
-**Endpoint:** `POST https://integrate.api.nvidia.com/v1/chat/completions`
-**Model:** `nvidia/llama-3.1-nemotron-70b-instruct` (via `NEMOTRON_MODEL`)
-**Settings:** `temperature: 0.2`, `top_p: 0.7`, `max_tokens: 700`, `response_format: {"type": "json_object"}`
+**Endpoint:** `POST https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent` (header `x-goog-api-key: $GEMINI_API_KEY`)
+**Model:** `gemini-2.5-flash` (via `GEMINI_MODEL`; verify current Flash name in AI Studio at build time)
+**Settings:** `temperature: 0.2`, `maxOutputTokens: 700`, `responseMimeType: "application/json"`, `responseSchema` (Gemini-adapted schema — see migration guide §C4), `systemInstruction` = system prompt below, `thinkingConfig: { thinkingBudget: 0 }` (latency knob; raise only if eval scores suffer)
 
 **System prompt (exact):**
 ```
@@ -58,7 +58,7 @@ Full dialogue for this question so far:
 {{/each}}
 ```
 
-**Retry/fallback:** invalid JSON or failed guardrail → retry once with appended line: `"Your previous response was not valid JSON matching the schema, or your category did not match your score. Return ONLY the corrected JSON object."` Second failure → `rulesBaseline.ts`, payload tagged `"evaluator": "fallback_rules"` (visible in UI and eval logs, never hidden).
+**Retry/fallback:** invalid JSON or failed guardrail → retry once with appended line: `"Your previous response was not valid JSON matching the schema, or your category did not match your score. Return ONLY the corrected JSON object."` appended to `systemInstruction`. Second failure → `rulesBaseline.ts`, payload tagged `"evaluator": "fallback_rules"` (visible in UI and eval logs, never hidden).
 
 ## Guardrail checks (code, not prompt)
 
@@ -71,13 +71,13 @@ Full dialogue for this question so far:
 
 ## Generic-prompt baseline (eval only)
 
-Same model, deliberately unstructured — shows why the constrained pipeline beats "just prompting the LLM":
+Gemini, deliberately unstructured — shows why the constrained pipeline beats "just prompting the LLM":
 ```
 You are an interview coach. Give the candidate feedback on this answer to the question "{{question_text}}":
 
 "{{full_dialogue_text}}"
 ```
-No `response_format`, no schema, `temperature: 0.7`. Free-text output; assign closest 0–100 score/category manually during eval (documented as a human-rater step — the asymmetry is part of the judge-facing point).
+No `responseMimeType`, no schema, `temperature: 0.7`. Free-text output; assign closest 0–100 score/category manually during eval (documented as a human-rater step — the asymmetry is part of the judge-facing point).
 
 ## Rules-baseline scorer (no model call)
 
@@ -102,7 +102,8 @@ No `response_format`, no schema, `temperature: 0.7`. Free-text output; assign cl
 
 ## Session synthesis prompt (one call, after all 5 finalize)
 
-**Settings:** same endpoint/model, `temperature: 0.3`, `max_tokens: 400`, `response_format: {"type": "json_object"}`.
+**Endpoint/model:** same Gemini endpoint/model.
+**Settings:** `temperature: 0.3`, `maxOutputTokens: 400`, `responseMimeType: "application/json"` (same `responseSchema` adaptation rules).
 
 **System prompt (exact):**
 ```

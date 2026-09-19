@@ -2,7 +2,7 @@
 
 > Every API contract and data schema. Code must match this doc — if they disagree, fix the code, not this doc.
 
-## Nemotron decision-object schema
+## Feedback decision-object schema
 
 ```json
 {
@@ -28,10 +28,12 @@
       }
     },
     "evidence": {"type": ["string", "null"]},
-    "evaluator": {"enum": ["nemotron", "fallback_rules"], "description": "Stamped by the server after validation; never trusted from model output."}
+    "evaluator": {"enum": ["gemini", "fallback_rules"], "description": "Stamped by the server after validation; never trusted from model output."}
   }
 }
 ```
+
+The `evaluator` enum values are now `"gemini" | "fallback_rules"`.
 
 **Discriminator — `next_action` controls which fields are populated** (enforced in code by `validateDecision`; unknown properties are rejected):
 
@@ -76,7 +78,7 @@ One envelope for every failure:
 | `UNSUPPORTED_AUDIO` | 400 | Codec/container not supported (expect webm/opus from MediaRecorder) |
 | `LOW_CONFIDENCE_UNCONFIRMED` | 422 | `stt_confidence < 0.6` and no confirmed transcript yet — body includes the raw transcript for the client to display |
 | `CONFIRM_LIMIT` | 422 | More than 2 confirmations attempted on a single turn |
-| `UPSTREAM_TIMEOUT` | 504 | Nemotron/ElevenLabs timed out and the fallback could not serve the request (`retryable: true` — client may retry the same turn) |
+| `UPSTREAM_TIMEOUT` | 504 | Gemini/ElevenLabs timed out and the fallback could not serve the request (`retryable: true` — client may retry the same turn) |
 | `SERVICE_UNAVAILABLE` | 503 | Fallback also failed; nothing to serve |
 
 ## Universal response fields
@@ -84,7 +86,7 @@ One envelope for every failure:
 Every turn-processing response (`POST /session/:id/answer` and `POST /session/:id/confirm-transcript`) includes:
 (`POST /session/:id/retry` carries `degraded`/`degraded_components` but not the transcript fields; `POST /session/start` has its own shape.)
 - `degraded: boolean` — true if any pipeline stage fell back
-- `degraded_components: ("stt" | "tts" | "nemotron" | "cache")[]` — which stages degraded
+- `degraded_components: ("stt" | "tts" | "gemini" | "cache")[]` — which stages degraded
 - `transcript` — the **current turn's** transcript only (full dialogue via `GET /session/:id`)
 - `transcript_source` — `"stt"` | `"browser_stt"` | `"human_confirmed"`; `browser_stt` means ElevenLabs STT fell back to the browser Web Speech API and `stt_confidence` is `null`
 - `tts_audio_url` — `audio/mpeg`, served locally in dev, valid for the session lifetime
@@ -123,7 +125,7 @@ CREATE TABLE turns (
   superseded_audio_url TEXT,
   stt_confidence REAL CHECK (stt_confidence IS NULL OR (stt_confidence BETWEEN 0 AND 1)),
   decision_json TEXT NOT NULL,
-  evaluator TEXT NOT NULL CHECK (evaluator IN ('nemotron', 'fallback_rules')),
+  evaluator TEXT NOT NULL CHECK (evaluator IN ('gemini', 'fallback_rules')),
   created_at TEXT NOT NULL,
   UNIQUE (session_id, question_index, turn_number, is_retry)
 );
@@ -165,7 +167,7 @@ Response, probing (no score yet):
     "follow_up_text": "Could you expand on that?",
     "score": null, "category": null, "explanation": null,
     "what_was_great": null, "level_up_tips": null,
-    "evidence": null, "evaluator": "nemotron"
+    "evidence": null, "evaluator": "gemini"
   },
   "tts_audio_url": "/audio/a1b2c3-turn1.mp3",
   "degraded": false, "degraded_components": []
@@ -189,7 +191,7 @@ Response, finalizing:
       {"title": "Add a number", "detail": "A rough timeframe or team size makes the story easier to picture and verify."}
     ],
     "evidence": "I personally rewrote the API contract",
-    "evaluator": "nemotron"
+    "evaluator": "gemini"
   },
   "tts_audio_url": "/audio/a1b2c3-turn2.mp3",
   "degraded": false, "degraded_components": []
@@ -215,7 +217,7 @@ Response: same shape as `/answer`, with `"transcript_source": "human_confirmed"`
 Scoring rules:
 - `total_score` = arithmetic mean of the 5 finalized question scores, rounded to 1 decimal.
 - `overall_category` = the category bands applied to `total_score`.
-- If synthesis fails, the templated fallback from `docs/03-prompts.md` is used and the response carries `degraded: true, degraded_components: ["nemotron"]` — the total is never null.
+- If synthesis fails, the templated fallback from `docs/03-prompts.md` is used and the response carries `degraded: true, degraded_components: ["gemini"]` — the total is never null.
 - Retry never changes the summary: original scores are immutable.
 
 ```json
@@ -260,9 +262,9 @@ function validateDecision(
   raw: unknown,
   transcript: string,
   turnNumber: number
-): { decision: DecisionObject; evaluator: "nemotron" | "fallback_rules" }
+): { decision: DecisionObject; evaluator: "gemini" | "fallback_rules" }
 
-// services/nemotron.ts — returns RAW output; caller must run validateDecision
+// services/gemini.ts — returns RAW output; caller must run validateDecision
 async function probeOrFinalize(input: {
   role: string;
   questionText: string;

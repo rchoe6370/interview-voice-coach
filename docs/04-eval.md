@@ -15,15 +15,15 @@
 |---|---|---|---|
 | Score agreement | `eval/dataset.json` | % within ±10 of `expected_score` | Run all 3 evaluators, diff vs expected |
 | Category agreement | same | % exact `category` match | Stricter secondary check (a ±10 score can still cross a boundary) |
-| Follow-up routing | `eval/edge_cases.json` | % matching `expected_next_action` (+ type) | Nemotron pipeline + rules baseline only (generic-prompt has no route field → N/A) |
+| Follow-up routing | `eval/edge_cases.json` | % matching `expected_next_action` (+ type) | Gemini pipeline + rules baseline only (generic-prompt has no route field → N/A) |
 | Evidence grounding | all finalized dialogues | % of `evidence` spans that are exact transcript substrings | Reuse live guardrail code (`evidenceCheck.ts`) — also validates the guardrail itself |
 | Latency | 10 live turns in rehearsal | Median mic-stop → audio-playback-start, probe vs finalize separately | `console.time` around orchestration in `answer.ts` |
 
 ## Baselines
 
 1. **Rules baseline** (`03-prompts.md`) — pure heuristics, zero model call.
-2. **Generic prompt** — same Nemotron model, unstructured ask. Returns free text; assign closest score/category manually during eval (documented as a human-rater step in the results footnote).
-3. **Nemotron pipeline** — the actual product (prompt + guardrails).
+2. **Generic prompt** — same Gemini model, unstructured ask. Returns free text; assign closest score/category manually during eval (documented as a human-rater step in the results footnote).
+3. **Gemini pipeline** — the actual product (prompt + guardrails + responseSchema).
 
 ## Success criteria (set BEFORE running — never adjust after)
 
@@ -37,5 +37,5 @@ Report actual observed values in `eval/results.json`. A miss becomes the documen
 
 ## Judge-facing presentation
 
-- **5-row table** (subset incl. at least one win and one miss): `question | dialogue (truncated) | expected score/category | rules baseline | nemotron decision | quoted evidence`.
+- **5-row table** (subset incl. at least one win and one miss): `question | dialogue (truncated) | expected score/category | rules baseline | gemini decision | quoted evidence`.
 - **One miss**, written up in `docs/failure-story.md`, e.g.: "the evaluator scored a polished-but-content-free answer too high → tightened score-band language in the system prompt ('non-answer scores near 0') + added score/category consistency guardrail → re-ran → showed corrected output side by side."

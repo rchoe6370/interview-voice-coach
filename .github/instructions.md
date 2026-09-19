@@ -14,7 +14,7 @@ Interview Voice Coach: a spoken mock-interview coach. Concept and tracks: `docs/
 - Backend: TypeScript + Express (Node 20), SQLite via better-sqlite3
 - Frontend: React 18 + Vite, browser MediaRecorder for audio
 - STT/TTS: ElevenLabs (scribe_v1 / eleven_turbo_v2_5)
-- Decision engine: NVIDIA Nemotron via build.nvidia.com (OpenAI-compatible), `response_format: json_object`
+- Feedback engine: Google Gemini via AI Studio REST (plain fetch), `responseMimeType: "application/json"` + `responseSchema`; model via `GEMINI_MODEL` env (default `gemini-2.5-flash`); `thinkingConfig.thinkingBudget: 0` for latency
 - Local only: server localhost:8080, client localhost:5173 (Vite proxies /api)
 
 ## Workflow

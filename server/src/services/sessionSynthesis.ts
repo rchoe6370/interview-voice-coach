@@ -1,4 +1,5 @@
 import type { Category, LevelUpTip } from "../contracts.js";
+import { synthesizeSessionRaw } from "./gemini.js";
 
 export interface FinalizedTurn {
   questionIndex: number;
@@ -9,5 +10,12 @@ export interface FinalizedTurn {
 }
 
 export async function synthesizeSession(_finalizedTurns: FinalizedTurn[]) {
-  throw new Error("TODO: synthesize completed session");
+  const summary = _finalizedTurns.map((turn) => ({
+    questionIndex: turn.questionIndex,
+    score: turn.score,
+    category: turn.category,
+    explanation: turn.explanation,
+    levelUpTips: turn.levelUpTips,
+  }));
+  return synthesizeSessionRaw(JSON.stringify(summary));
 }

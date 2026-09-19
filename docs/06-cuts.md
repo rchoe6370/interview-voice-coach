@@ -4,7 +4,7 @@
 
 ## Hour 0–2 — Freeze the contract + scaffold
 
-- Write `docs/decision-schema.json`, `server/src/data/questions.ts` (5 fixed questions + keyword hints), and the Nemotron system prompt into `prompts/nemotronPrompts.ts` verbatim from `03-prompts.md`. **This shape must not change later** — everything downstream depends on it.
+- Write `docs/decision-schema.json`, `server/src/data/questions.ts` (5 fixed questions + keyword hints), and the feedback system prompt into `prompts/feedbackPrompts.ts` verbatim from `03-prompts.md`. **This shape must not change later** — everything downstream depends on it. Claim the .tech domain with the MLH code NOW — provisioning/DNS can lag; have 2 backup names ready.
 - Scaffold: `create-vite client -- --template react-ts`, minimal Express + TypeScript `server/`. Get `/health` 200 through the Vite proxy. `npm run dev` (via `concurrently`) starts both with one command.
 - **Smoke test:** `curl localhost:5173/api/health` → 200.
 
@@ -16,8 +16,8 @@
 
 ## Hour 6–10 — Add judgment
 
-- Implement `services/nemotron.ts` (`response_format: json_object`), `guardrails/` (zod + evidence substring + enum whitelist), `rulesBaseline.ts` fallback.
-- Wire `POST /session/:id/answer`: STT → Nemotron → guardrail (fallback to rules) → TTS → full payload.
+- Implement `services/gemini.ts` (`responseMimeType: "application/json"` + `responseSchema`, plain fetch), `guardrails/` (zod + evidence substring + enum whitelist), `rulesBaseline.ts` fallback.
+- Wire `POST /session/:id/answer`: STT → Gemini → guardrail (fallback to rules) → TTS → full payload.
 - **Smoke test:** `curl -F audio=@test.webm localhost:8080/session/test/answer` returns a valid decision object 3 times in a row. If schema failures exceed ~1 in 3, spend ≤30 min tightening the prompt (add a one-shot example) — do not let this slide uncapped past hour 10.
 
 ## Hour 10–14 — Close the loop
@@ -31,19 +31,20 @@
 ## Hour 14–18 — Build evidence (solo-scoped)
 
 - Hand-write **12** eval dialogues (2 questions × 3 tiers × 2 variants) in `eval/dataset.json`; **8** routing edge cases in `eval/edge_cases.json`.
-- `run_eval.ts`: rules-baseline + real Nemotron pipeline over the dataset (generic-prompt baseline run manually on 3–4 samples, eyeball-compared — documented as scoped-down, not hidden). Save `eval/results.json`.
+- `run_eval.ts`: rules-baseline + real Gemini pipeline over the dataset (generic-prompt baseline run manually on 3–4 samples, eyeball-compared — documented as scoped-down, not hidden). Save `eval/results.json`.
 - Find one clear miss → write `docs/failure-story.md`.
 - **Smoke test:** `eval/results.json` has real numbers, and you can name the documented failure out loud without looking it up.
 
 ## Hour 18–21 — Fallback path + polish
 
 - Record a real session into `cachedFallback.json` via `scripts/seed-cached-fallback.ts`; wire upstream-timeout → cached turn + `degraded: true`.
-- Polish only demo-visible surfaces: recording indicator, evidence highlighting, loading spinner during the STT→Nemotron→TTS round-trip. Nothing else.
+- Polish only demo-visible surfaces: recording indicator, evidence highlighting, loading spinner during the STT→Gemini→TTS round-trip. Nothing else.
 - **Smoke test:** unplug Wi-Fi mid-session → degrades to cached mode, reconnects cleanly.
 
 ## Hour 21–24 — Rehearse and buffer
 
 - Run the exact 3-minute script (`05-demo.md`) out loud, timed, ≥5 times. Cut narration first if over — never cut the retry loop or JSON-reveal beats.
+- Build the static showcase bundle (client in showcase mode replaying `cachedFallback.json`, zero backend calls) and deploy to the .tech domain. Verify the domain serves it.
 - Confirm `.env` on both laptops; backup device has repo + working `.env`.
 - Record the 90-second backup video NOW, while the app is in its best-known state.
 - Last 15 minutes: contingency checks only. Nothing new.
@@ -52,7 +53,7 @@
 
 | # | Risk | Mitigation | Trigger |
 |---|---|---|---|
-| 1 | Nemotron JSON inconsistent under load | 1 retry + rules fallback already in the critical path | Fallback rate >40% in eval run → 30 min prompt hardening, then move on |
+| 1 | Gemini JSON inconsistent (responseSchema makes this rarer than json_object mode) | 1 retry + rules fallback already in the critical path | Fallback rate >40% in eval run → 30 min prompt hardening, then move on |
 | 2 | Venue Wi-Fi can't sustain live API calls at judging | Phone hotspot + cached fallback session | Hotspot fails in hour-22 test → switch to backup-video demo, no live APIs at judging |
 | 3 | Mic/codec issues on unfamiliar hardware | Demo only on your pre-tested laptop, never a judge's device | `MediaRecorder` fails in rehearsal → switch to AudioContext/WAV path immediately |
 | 4 | Hour 6–10 judgment smoke test slips | Rules fallback built in the same block, app always demoable | Not passing by hour 11 → 30 more min prompt tuning, then lean on fallback |

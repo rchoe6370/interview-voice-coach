@@ -10,5 +10,5 @@ export const decisionSchema = z.object({
   what_was_great: z.string().max(300).nullable(),
   level_up_tips: z.array(z.object({ title: z.string().max(60), detail: z.string().max(200) })).min(2).max(3).nullable(),
   evidence: z.string().nullable(),
-  evaluator: z.enum(["nemotron", "fallback_rules"])
+  evaluator: z.enum(["gemini", "fallback_rules"])
 }).strict();

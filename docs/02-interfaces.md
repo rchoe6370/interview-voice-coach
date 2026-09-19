@@ -89,7 +89,13 @@ Every turn-processing response (`POST /session/:id/answer` and `POST /session/:i
 - `degraded_components: ("stt" | "tts" | "gemini" | "cache")[]` — which stages degraded
 - `transcript` — the **current turn's** transcript only (full dialogue via `GET /session/:id`)
 - `transcript_source` — `"stt"` | `"browser_stt"` | `"human_confirmed"`; `browser_stt` means ElevenLabs STT fell back to the browser Web Speech API and `stt_confidence` is `null`
-- `tts_audio_url` — `audio/mpeg`, served locally in dev, valid for the session lifetime
+- `tts_audio_url` — `string | null`; when non-null, an `audio/mpeg` URL served locally in dev and valid for the session lifetime. When `degraded_components` includes `"tts"`, this is `null`; the client must speak the response text with browser `SpeechSynthesis` (`question_text` for start, `decision.follow_up_text` for answers) and show the "backup voice" badge.
+
+### Success status codes
+
+- `POST /session/start` -> `201 Created`
+- `POST /session/:id/answer`, `/confirm-transcript`, `/retry` -> `200`
+- All `GET` endpoints -> `200`
 
 ## SQLite schema
 

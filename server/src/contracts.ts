@@ -28,7 +28,7 @@ export interface TurnResponse {
   transcript_source: TranscriptSource;
   stt_confidence: number | null;
   decision: DecisionObject;
-  tts_audio_url: string;
+  tts_audio_url: string | null;
   degraded: boolean;
   degraded_components: string[];
 }

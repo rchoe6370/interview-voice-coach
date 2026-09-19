@@ -1,3 +1,4 @@
+// TODO: null tts_audio_url must trigger SpeechSynthesis fallback and the "backup voice" badge.
 export async function startSession(_role: string): Promise<unknown> {
   throw new Error("TODO: POST /session/start");
 }

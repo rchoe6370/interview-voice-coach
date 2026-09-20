@@ -1,4 +1,4 @@
-# SECRETS — never push these (repos are often public at judging)
+# SECRETS
 .env
 .env.local
 *.pem
@@ -18,7 +18,7 @@ node_modules/
 dist/
 build/
 
-# Runtime data — regenerate via scripts, don't bloat the repo
+# Runtime data
 data/*.db
 data/*.db-journal
 *.log
@@ -27,7 +27,7 @@ data/*.db-journal
 .DS_Store
 Thumbs.db
 
-# Local backup video (large; keep on disk, not in git)
+# Local backup video
 *.mp4
 *.mov
 testdata/

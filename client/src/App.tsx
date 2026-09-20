@@ -6,6 +6,8 @@ import { SessionSummary, SummaryQuestion } from "./components/SessionSummary";
 import { ApiError, AnswerResponse, SessionStartResponse, startSession, submitAnswer } from "./lib/api";
 import { playAudio, speak } from "./lib/audio";
 
+type FinalizedQuestion = SummaryQuestion & { questionText: string };
+
 export function App() {
   const [role, setRole] = useState("swe-behavioral");
   const [session, setSession] = useState<SessionStartResponse | null>(null);
@@ -17,7 +19,7 @@ export function App() {
   const [error, setError] = useState("");
   const [backupVoice, setBackupVoice] = useState(false);
   const [complete, setComplete] = useState(false);
-  const [finalizedQuestions, setFinalizedQuestions] = useState<SummaryQuestion[]>([]);
+  const [finalizedQuestions, setFinalizedQuestions] = useState<FinalizedQuestion[]>([]);
   const [summary, setSummary] = useState<Record<string, unknown> | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [retryResult, setRetryResult] = useState<RetryResult | null>(null);
@@ -50,7 +52,7 @@ export function App() {
       const answerWithRaw = next as AnswerResponse & { model_raw?: string; next_question?: { question_index: number; question_text: string; tts_audio_url: string | null } | null };
       setAnswer(answerWithRaw);
       if (answerWithRaw.decision.next_action === "finalize_question") {
-        setFinalizedQuestions((current) => [...current, { questionIndex, score: answerWithRaw.decision.score ?? 0, category: answerWithRaw.decision.category ?? "Needs Work", levelUpTips: answerWithRaw.decision.level_up_tips ?? [] }]);
+        setFinalizedQuestions((current) => [...current, { questionIndex, questionText, score: answerWithRaw.decision.score ?? 0, category: answerWithRaw.decision.category ?? "Needs Work", levelUpTips: answerWithRaw.decision.level_up_tips ?? [] }]);
       }
       if (answerWithRaw.decision.next_action === "ask_follow_up") {
         if (answerWithRaw.next_turn_number !== null) setTurnNumber(answerWithRaw.next_turn_number);
@@ -86,9 +88,9 @@ export function App() {
           </label>
           <button type="button" onClick={() => void beginSession()} disabled={busy} style={{ padding: "14px 24px", border: 0, borderRadius: 8, background: "#d94a4a", color: "white", fontWeight: 800, fontSize: 16 }}>{busy ? "Starting..." : "Start interview"}</button>
         </section>
-      ) : summary ? (retrying ? <RetryCompare sessionId={session.session_id} questionIndex={Number(summary.retry_target_index)} tipApplied={finalizedQuestions.find((question) => question.questionIndex === Number(summary.retry_target_index))?.levelUpTips[0]?.title ?? "Add concrete detail"} onBack={() => setRetrying(false)} onComplete={(result) => { setRetryResult(result); setRetrying(false); }} /> : <>
+      ) : summary ? (retrying ? <RetryCompare sessionId={session.session_id} questionIndex={Number(summary.retry_target_index)} questionText={finalizedQuestions.find((question) => question.questionIndex === Number(summary.retry_target_index))?.questionText ?? "Interview question"} tipApplied={finalizedQuestions.find((question) => question.questionIndex === Number(summary.retry_target_index))?.levelUpTips[0]?.title ?? "Add concrete detail"} onBack={() => setRetrying(false)} onComplete={(result) => { setRetryResult(result); setRetrying(false); }} /> : <>
           <SessionSummary totalScore={Number(summary.total_score)} overallCategory={String(summary.overall_category)} conclusion={String(summary.conclusion)} strengths={summary.strengths as string[]} growthAreas={summary.growth_areas as string[]} questions={finalizedQuestions} retryTargetIndex={Number(summary.retry_target_index)} certificateUnlocked={Boolean(summary.certificate_unlocked)} onRetry={() => setRetrying(true)} />
-          {retryResult && <RetryCompare sessionId={session.session_id} questionIndex={Number(summary.retry_target_index)} tipApplied={retryResult.tip_applied} result={retryResult} onBack={() => setRetryResult(null)} onComplete={() => undefined} />}
+          {retryResult && <RetryCompare sessionId={session.session_id} questionIndex={Number(summary.retry_target_index)} questionText={finalizedQuestions.find((question) => question.questionIndex === Number(summary.retry_target_index))?.questionText ?? "Interview question"} tipApplied={retryResult.tip_applied} result={retryResult} onBack={() => setRetryResult(null)} onComplete={() => undefined} />}
         </>) : (<section>
           <p style={{ color: "#68737d" }}>Question {questionIndex + 1} of 5</p>
           <h2 style={{ fontSize: 32, color: "#173f5f", lineHeight: 1.2 }}>{questionText}</h2>

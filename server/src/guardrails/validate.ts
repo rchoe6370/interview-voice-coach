@@ -2,6 +2,7 @@ import { decisionSchema } from "./schema.js";
 import { evidenceIsGrounded } from "./evidenceCheck.js";
 import type { DecisionObject } from "../contracts.js";
 import { scoreWithRules } from "../services/rulesBaseline.js";
+import { shouldForceFinalize } from "../stateMachine/interview.js";
 
 export function validateDecision(
   raw: unknown,
@@ -28,12 +29,19 @@ export function validateDecision(
       && decision.level_up_tips === null && decision.evidence === null);
   const finalizeFieldsValid = decision.next_action !== "finalize_question"
     || (decision.follow_up_type === null && decision.follow_up_text === null);
+  const finalizeScoreValid = decision.next_action !== "finalize_question"
+    || (decision.score !== null && decision.category !== null
+      && decision.explanation !== null && decision.what_was_great !== null
+      && decision.level_up_tips !== null);
   const evidenceValid = decision.evidence === null || evidenceIsGrounded(decision.evidence, transcript);
   const titles = decision.level_up_tips?.map((tip) => tip.title) ?? [];
   const titlesUnique = new Set(titles).size === titles.length;
-  if (!categoryValid || !probeFieldsValid || !finalizeFieldsValid || !evidenceValid || !titlesUnique) {
+  const languageValid = !JSON.stringify(decision).toLowerCase().match(/\b(hire|hireable)\b/);
+  if (!categoryValid || !probeFieldsValid || !finalizeFieldsValid || !finalizeScoreValid || !evidenceValid || !titlesUnique || !languageValid) {
     return { decision: scoreWithRules(transcript, turnNumber), evaluator: "fallback_rules" };
   }
-  // TODO(slice 4): force-finalize when turnNumber >= 2.
+  if (shouldForceFinalize(turnNumber) && decision.next_action === "ask_follow_up") {
+    return { decision: scoreWithRules(transcript, turnNumber), evaluator: "fallback_rules" };
+  }
   return { decision, evaluator: "gemini" };
 }

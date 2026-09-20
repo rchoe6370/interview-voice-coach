@@ -10,6 +10,10 @@ export function nextQuestionIndex(currentIndex: number): number | null {
   return currentIndex < QUESTIONS.length - 1 ? currentIndex + 1 : null;
 }
 
+export function shouldForceFinalize(turnNumber: number): boolean {
+  return turnNumber >= 2;
+}
+
 export function retryTargetIndex(_scores: number[]): number {
   throw new Error("TODO: select weakest finalized question");
 }

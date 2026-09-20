@@ -59,9 +59,8 @@ Never commit `.env`. `.env.example` lists the names with blank values.
 - Claude was used for ideation, program architecture, and code review
 - GitHub Copilot was used for implementation
 
-- Muse was used for ideation, system architecture, contract design, and code review.
-- GitHub Copilot was used for implementation — writing code against those contracts.
-
 ## Future work
 
-more question banks (system design, behavioral deep-dives) · progress tracking across sessions
+- More question banks (system design, behavioral deep-dives)
+- Progress tracking across sessions
+- Face-to-face system

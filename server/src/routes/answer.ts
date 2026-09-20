@@ -89,6 +89,10 @@ router.post("/:id/answer", upload.single("audio"), async (req, res) => {
     INSERT INTO turns (session_id, question_index, turn_number, is_final, transcript, transcript_source, stt_confidence, decision_json, evaluator, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(req.params.id, questionIndex, turnNumber, decision.next_action === "finalize_question" ? 1 : 0, transcript, transcription.source, transcription.confidence, JSON.stringify(decision), evaluator, new Date().toISOString());
+  if (decision.next_action === "finalize_question") {
+    db.prepare("UPDATE sessions SET current_question_index = ? WHERE id = ?")
+      .run(nextQuestionIndex(questionIndex) ?? questionIndex, req.params.id);
+  }
 
   return res.status(200).json({
     session_id: req.params.id,

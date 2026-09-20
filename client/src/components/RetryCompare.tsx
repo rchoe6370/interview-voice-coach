@@ -41,7 +41,7 @@ export function RetryCompare({ sessionId, questionIndex, questionText, tipApplie
     </div> : <>
       <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 0 28px", color: "#53616c" }}>
         <span><strong>Tip to apply:</strong> {tipApplied}</span>
-        <button type="button" aria-label="Replay tip" onClick={() => speak(tipApplied)} disabled={busy} style={{ border: 0, background: "transparent", color: "#173f5f", textDecoration: "underline", cursor: "pointer", padding: 4 }}>Replay</button>
+        <button type="button" aria-label="Replay tip" onClick={() => speak(tipApplied)} disabled={busy} style={{ border: 0, background: "transparent", color: "#164e63", textDecoration: "underline", cursor: "pointer", padding: 4 }}>Replay</button>
       </div>
       <RecordButton disabled={busy} onRecordingComplete={(audio) => void retry(audio)} onError={setError} />
       {busy && <p>Processing retry...</p>}{error && <p role="alert">{error}</p>}

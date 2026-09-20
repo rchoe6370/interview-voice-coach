@@ -49,7 +49,7 @@ export function RecordButton({ disabled = false, onRecordingComplete, onError }:
       onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); void begin(); }}
       onPointerUp={() => { void end(); }}
       onPointerCancel={() => { void end(); }}
-      style={{ minWidth: 220, minHeight: 88, border: 0, borderRadius: 18, color: "white", background: recording ? "#d94a4a" : "#173f5f", fontSize: 18, fontWeight: 700, boxShadow: recording ? "0 0 0 10px rgba(217,74,74,.16)" : "0 8px 20px rgba(23,63,95,.2)" }}
+      style={{ minWidth: 220, minHeight: 88, border: 0, borderRadius: 18, color: "white", background: recording ? "#0e7490" : "#164e63", fontSize: 18, fontWeight: 700, boxShadow: recording ? "0 0 0 10px rgba(217,74,74,.16)" : "0 8px 20px rgba(23,63,95,.2)" }}
     >
       {recording ? `Recording ${elapsed.toFixed(1)}s` : "Press and hold to answer"}
     </button>

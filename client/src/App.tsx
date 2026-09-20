@@ -76,8 +76,8 @@ export function App() {
 
   return (
     <main style={{ maxWidth: 760, margin: "0 auto", padding: "48px 24px", minHeight: "100vh", boxSizing: "border-box" }}>
-      <p style={{ color: "#d94a4a", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase" }}>Interview Voice Coach</p>
-      <h1 style={{ fontSize: "clamp(2.4rem, 7vw, 5rem)", lineHeight: 1, margin: "16px 0", color: "#173f5f" }}>Practice answers that land.</h1>
+      <p style={{ color: "#0e7490", fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase" }}>Interview Voice Coach</p>
+      <h1 style={{ fontSize: "clamp(2.4rem, 7vw, 5rem)", lineHeight: 1, margin: "16px 0", color: "#164e63" }}>Practice answers that land.</h1>
       {!session ? (
         <section>
           <p style={{ fontSize: 20, lineHeight: 1.5 }}>A focused mock interview with spoken questions and useful follow-ups.</p>
@@ -86,22 +86,22 @@ export function App() {
               <option value="swe-behavioral">Software engineering</option><option value="pm">Product management</option><option value="data">Data</option><option value="general">General</option>
             </select>
           </label>
-          <button type="button" onClick={() => void beginSession()} disabled={busy} style={{ padding: "14px 24px", border: 0, borderRadius: 8, background: "#d94a4a", color: "white", fontWeight: 800, fontSize: 16 }}>{busy ? "Starting..." : "Start interview"}</button>
+          <button type="button" onClick={() => void beginSession()} disabled={busy} style={{ padding: "14px 24px", border: 0, borderRadius: 8, background: "#0e7490", color: "white", fontWeight: 800, fontSize: 16 }}>{busy ? "Starting..." : "Start interview"}</button>
         </section>
       ) : summary ? (retrying ? <RetryCompare sessionId={session.session_id} questionIndex={Number(summary.retry_target_index)} questionText={finalizedQuestions.find((question) => question.questionIndex === Number(summary.retry_target_index))?.questionText ?? "Interview question"} tipApplied={finalizedQuestions.find((question) => question.questionIndex === Number(summary.retry_target_index))?.levelUpTips[0]?.title ?? "Add concrete detail"} onBack={() => setRetrying(false)} onComplete={(result) => { setRetryResult(result); setRetrying(false); }} /> : <>
           <SessionSummary totalScore={Number(summary.total_score)} overallCategory={String(summary.overall_category)} conclusion={String(summary.conclusion)} strengths={summary.strengths as string[]} growthAreas={summary.growth_areas as string[]} questions={finalizedQuestions} retryTargetIndex={Number(summary.retry_target_index)} certificateUnlocked={Boolean(summary.certificate_unlocked)} retryUsed={Boolean(retryResult)} onRetry={() => setRetrying(true)} />
           {retryResult && <RetryCompare sessionId={session.session_id} questionIndex={Number(summary.retry_target_index)} questionText={finalizedQuestions.find((question) => question.questionIndex === Number(summary.retry_target_index))?.questionText ?? "Interview question"} tipApplied={retryResult.tip_applied} result={retryResult} onBack={() => setRetryResult(null)} onComplete={() => undefined} />}
         </>) : (<section>
-          <p style={{ color: "#68737d" }}>Question {questionIndex + 1} of 5</p>
-          <h2 style={{ fontSize: 32, color: "#173f5f", lineHeight: 1.2 }}>{questionText}</h2>
-          {backupVoice && <p style={{ display: "inline-block", padding: "6px 10px", background: "#fff0d6", color: "#8a5712", borderRadius: 999, fontWeight: 700 }}>Backup voice</p>}
-          {answer && <div style={{ margin: "28px 0", padding: 20, background: "#eef4f5", borderLeft: "4px solid #d94a4a" }}><strong>You said</strong><p>{answer.transcript}</p>{answer.decision.follow_up_text && <><strong>Follow-up</strong><p>{answer.decision.follow_up_text}</p></>}</div>}
-          {answer?.decision.next_action === "finalize_question" && <div style={{ margin: "28px 0", padding: 20, background: "#fff0d6" }}><strong>Score: {answer.decision.score ?? "-"} · {answer.decision.category ?? "Unscored"}</strong><p>{answer.decision.evidence ? `Evidence: ${answer.decision.evidence}` : "No evidence captured."}</p>{answer.decision.level_up_tips?.map((tip) => <p key={tip.title}><strong>{tip.title}:</strong> {tip.detail}</p>)}</div>}
+          <p style={{ color: "#64748b" }}>Question {questionIndex + 1} of 5</p>
+          <h2 style={{ fontSize: 32, color: "#164e63", lineHeight: 1.2 }}>{questionText}</h2>
+          {backupVoice && <p style={{ display: "inline-block", padding: "6px 10px", background: "#fef9c3", color: "#854d0e", borderRadius: 999, fontWeight: 700 }}>Backup voice</p>}
+          {answer && <div style={{ margin: "28px 0", padding: 20, background: "#ecfeff", borderLeft: "4px solid #0e7490" }}><strong>You said</strong><p>{answer.transcript}</p>{answer.decision.follow_up_text && <><strong>Follow-up</strong><p>{answer.decision.follow_up_text}</p></>}</div>}
+          {answer?.decision.next_action === "finalize_question" && <div style={{ margin: "28px 0", padding: 20, background: "#fef9c3" }}><strong>Score: {answer.decision.score ?? "-"} · {answer.decision.category ?? "Unscored"}</strong><p>{answer.decision.evidence ? `Evidence: ${answer.decision.evidence}` : "No evidence captured."}</p>{answer.decision.level_up_tips?.map((tip) => <p key={tip.title}><strong>{tip.title}:</strong> {tip.detail}</p>)}</div>}
           {answer && <DecisionJsonPanel modelRaw={(answer as AnswerResponse & { model_raw?: string }).model_raw ?? JSON.stringify(answer.decision)} evaluator={answer.decision.evaluator} nextAction={answer.decision.next_action} />}
           {complete ? <p style={{ fontSize: 20, fontWeight: 700 }}>Interview complete — summary screen lands in slice 7.</p> : <RecordButton disabled={busy} onRecordingComplete={(audio) => void handleRecording(audio)} onError={setError} />}
           {busy && <p>Processing your answer...</p>}
         </section>)}
-      {error && <p role="alert" style={{ marginTop: 24, color: "#a12626", fontWeight: 700 }}>{error}</p>}
+      {error && <p role="alert" style={{ marginTop: 24, color: "#b91c1c", fontWeight: 700 }}>{error}</p>}
     </main>
   );
 }

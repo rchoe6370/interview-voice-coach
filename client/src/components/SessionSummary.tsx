@@ -27,7 +27,7 @@ export function SessionSummary({ totalScore, overallCategory, conclusion, streng
     <h3>Strengths</h3><ul>{strengths.map((item) => <li key={item}>{item}</li>)}</ul>
     <h3>Growth areas</h3><ul>{growthAreas.map((item) => <li key={item}>{item}</li>)}</ul>
     <h3>Question scores</h3>
-    {questions.map((question) => <p key={question.questionIndex} style={{ padding: 10, background: question.questionIndex === retryTargetIndex ? "#fff0d6" : "#eef4f5" }}><strong>Question {question.questionIndex + 1}:</strong> {question.score} · {question.category}{question.questionIndex === retryTargetIndex ? " · retry target" : ""}</p>)}
-    <button type="button" onClick={onRetry} disabled={retryUsed} style={{ padding: "12px 18px", background: retryUsed ? "#aab4bb" : "#d94a4a", color: "white", border: 0, borderRadius: 8, fontWeight: 800, cursor: retryUsed ? "not-allowed" : "pointer" }}>{retryUsed ? "Retry used" : "Retry weakest answer"}</button>
+    {questions.map((question) => <p key={question.questionIndex} style={{ padding: 10, background: question.questionIndex === retryTargetIndex ? "#fef9c3" : "#ecfeff" }}><strong>Question {question.questionIndex + 1}:</strong> {question.score} · {question.category}{question.questionIndex === retryTargetIndex ? " · retry target" : ""}</p>)}
+    <button type="button" onClick={onRetry} disabled={retryUsed} style={{ padding: "12px 18px", background: retryUsed ? "#aab4bb" : "#0e7490", color: "white", border: 0, borderRadius: 8, fontWeight: 800, cursor: retryUsed ? "not-allowed" : "pointer" }}>{retryUsed ? "Retry used" : "Retry weakest answer"}</button>
   </section>;
 }

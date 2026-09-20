@@ -239,7 +239,7 @@ Scoring rules:
 
 ## `POST /session/:id/retry`
 
-Request: `{ "question_index": 4 }`
+Request: `multipart/form-data` with `audio` (webm/opus blob) and `question_index` (int).
 
 Rules:
 - Allowed once per session, only when `status = 'completed'`, only for `retry_target_index` → otherwise `409 BAD_STATE`.

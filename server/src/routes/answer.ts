@@ -6,6 +6,7 @@ import { probeOrFinalize } from "../services/gemini.js";
 import { scoreWithRules } from "../services/rulesBaseline.js";
 import { validateDecision } from "../guardrails/validate.js";
 import { nextQuestionIndex } from "../stateMachine/interview.js";
+import { questions } from "../data/questions.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -78,12 +79,28 @@ router.post("/:id/answer", upload.single("audio"), async (req, res) => {
   const { decision, evaluator } = validateDecision(raw, transcript, input.turnNumber);
   let ttsAudioUrl: string | null = null;
   const degradedComponents: string[] = evaluator === "fallback_rules" ? ["gemini"] : [];
+  let nextQuestion: { question_index: number; question_text: string; tts_audio_url: string | null } | null = null;
   if (decision.next_action === "ask_follow_up" && decision.follow_up_text) {
     try {
       ttsAudioUrl = (await synthesize(decision.follow_up_text)).audioUrl;
     } catch {
       degradedComponents.push("tts");
     }
+  }
+  const nextQuestionIndexValue = nextQuestionIndex(questionIndex);
+  if (decision.next_action === "finalize_question" && nextQuestionIndexValue !== null) {
+    const question = questions[nextQuestionIndexValue];
+    let nextQuestionAudioUrl: string | null = null;
+    try {
+      nextQuestionAudioUrl = (await synthesize(question.text)).audioUrl;
+    } catch {
+      degradedComponents.push("tts");
+    }
+    nextQuestion = {
+      question_index: question.index,
+      question_text: question.text,
+      tts_audio_url: nextQuestionAudioUrl
+    };
   }
   db.prepare(`
     INSERT INTO turns (session_id, question_index, turn_number, is_final, transcript, transcript_source, stt_confidence, decision_json, evaluator, created_at)
@@ -99,7 +116,8 @@ router.post("/:id/answer", upload.single("audio"), async (req, res) => {
     question_index: questionIndex,
     turn_number: input.turnNumber,
     next_turn_number: decision.next_action === "ask_follow_up" ? input.turnNumber + 1 : null,
-    next_question_index: decision.next_action === "finalize_question" ? nextQuestionIndex(questionIndex) ?? questionIndex : questionIndex,
+    next_question_index: decision.next_action === "finalize_question" ? nextQuestionIndexValue ?? questionIndex : questionIndex,
+    next_question: nextQuestion,
     transcript,
     transcript_source: transcription.source,
     stt_confidence: transcription.confidence,

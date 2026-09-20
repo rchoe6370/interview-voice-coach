@@ -204,6 +204,19 @@ Response, finalizing:
 }
 ```
 
+The finalizing response also includes the next question payload so the client can advance without deriving state:
+
+```json
+{
+  "next_question": {
+    "question_index": 1,
+    "question_text": "Describe a difficult team situation.",
+    "tts_audio_url": "/audio/a1b2c3-q1.mp3"
+  }
+}
+```
+`next_question` is `null` after the fifth question. Its `tts_audio_url` may also be `null` when TTS is degraded; the client uses browser SpeechSynthesis in that case.
+
 ## `POST /session/:id/confirm-transcript`
 
 When `/answer` returns `422 LOW_CONFIDENCE_UNCONFIRMED`, the client shows the raw transcript and posts a correction here.

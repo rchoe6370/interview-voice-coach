@@ -7,10 +7,13 @@ export function App() {
   const [role, setRole] = useState("swe-behavioral");
   const [session, setSession] = useState<SessionStartResponse | null>(null);
   const [answer, setAnswer] = useState<AnswerResponse | null>(null);
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [questionText, setQuestionText] = useState("");
   const [turnNumber, setTurnNumber] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [backupVoice, setBackupVoice] = useState(false);
+  const [complete, setComplete] = useState(false);
 
   const announce = async (text: string, audioUrl: string | null) => {
     if (audioUrl) {
@@ -26,7 +29,7 @@ export function App() {
     setBusy(true); setError("");
     try {
       const next = await startSession(role);
-      setSession(next); setAnswer(null); setTurnNumber(0);
+      setSession(next); setAnswer(null); setQuestionIndex(next.question_index); setQuestionText(next.question_text); setTurnNumber(0); setComplete(false);
       await announce(next.question_text, next.tts_audio_url);
     } catch (caught) { setError(formatError(caught)); }
     finally { setBusy(false); }
@@ -36,10 +39,22 @@ export function App() {
     if (!session) return;
     setBusy(true); setError("");
     try {
-      const next = await submitAnswer(session.session_id, audio, session.question_index, turnNumber);
+      const next = await submitAnswer(session.session_id, audio, questionIndex, turnNumber);
       setAnswer(next);
-      if (next.next_turn_number !== null) setTurnNumber(next.next_turn_number);
-      if (next.decision.follow_up_text) await announce(next.decision.follow_up_text, next.tts_audio_url);
+      if (next.decision.next_action === "ask_follow_up") {
+        if (next.next_turn_number !== null) setTurnNumber(next.next_turn_number);
+        if (next.decision.follow_up_text) await announce(next.decision.follow_up_text, next.tts_audio_url);
+      } else {
+        const finalized = next as AnswerResponse & { next_question: { question_index: number; question_text: string; tts_audio_url: string | null } | null };
+        if (!finalized.next_question) {
+          setComplete(true);
+          return;
+        }
+        setQuestionIndex(finalized.next_question.question_index);
+        setQuestionText(finalized.next_question.question_text);
+        setTurnNumber(0);
+        await announce(finalized.next_question.question_text, finalized.next_question.tts_audio_url);
+      }
     } catch (caught) { setError(formatError(caught)); }
     finally { setBusy(false); }
   };
@@ -60,11 +75,12 @@ export function App() {
         </section>
       ) : (
         <section>
-          <p style={{ color: "#68737d" }}>Question {session.question_index + 1} of 5</p>
-          <h2 style={{ fontSize: 32, color: "#173f5f", lineHeight: 1.2 }}>{session.question_text}</h2>
+          <p style={{ color: "#68737d" }}>Question {questionIndex + 1} of 5</p>
+          <h2 style={{ fontSize: 32, color: "#173f5f", lineHeight: 1.2 }}>{questionText}</h2>
           {backupVoice && <p style={{ display: "inline-block", padding: "6px 10px", background: "#fff0d6", color: "#8a5712", borderRadius: 999, fontWeight: 700 }}>Backup voice</p>}
           {answer && <div style={{ margin: "28px 0", padding: 20, background: "#eef4f5", borderLeft: "4px solid #d94a4a" }}><strong>You said</strong><p>{answer.transcript}</p>{answer.decision.follow_up_text && <><strong>Follow-up</strong><p>{answer.decision.follow_up_text}</p></>}</div>}
-          <RecordButton disabled={busy} onRecordingComplete={(audio) => void handleRecording(audio)} onError={setError} />
+          {answer?.decision.next_action === "finalize_question" && <div style={{ margin: "28px 0", padding: 20, background: "#fff0d6" }}><strong>Score: {answer.decision.score ?? "-"} · {answer.decision.category ?? "Unscored"}</strong><p>{answer.decision.evidence ? `Evidence: ${answer.decision.evidence}` : "No evidence captured."}</p>{answer.decision.level_up_tips?.map((tip) => <p key={tip.title}><strong>{tip.title}:</strong> {tip.detail}</p>)}</div>}
+          {complete ? <p style={{ fontSize: 20, fontWeight: 700 }}>Interview complete — summary screen lands in slice 7.</p> : <RecordButton disabled={busy} onRecordingComplete={(audio) => void handleRecording(audio)} onError={setError} />}
           {busy && <p>Processing your answer...</p>}
         </section>
       )}

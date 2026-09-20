@@ -112,10 +112,10 @@ You are summarizing a completed 5-question mock interview session. You will be g
 Return ONLY this JSON object:
 {
   "conclusion": "<2-3 sentences, encouraging but honest, referencing the overall pattern across questions, not just the best or worst one>",
-  "strengths": ["<3 short phrases, each a distinct strength that showed up in 2+ questions>"],
+  "strengths": ["<3 short phrases, each tied to a different question/answer and grounded in a concrete detail from that answer>"],
   "growth_areas": ["<3-4 short phrases, each a distinct growth area that showed up in 2+ questions, ordered most to least impactful>"]
 }
-Do not introduce any strength or growth area that isn't traceable to at least one of the provided per-question explanations or tips. Never mention a hiring outcome.
+Do not introduce any strength or growth area that isn't traceable to at least one of the provided per-question explanations, ownership statements, or tips. Each strength must reference a different question/answer, use a concrete detail, and use wording distinct from every other strength. Never repeat a phrase or generic strength across strengths. Never mention a hiring outcome.
 ```
 
 **Fallback:** templated synthesis — `conclusion` from total-score band; strengths/growth areas = most common `what_was_great` / `level_up_tips[0].title` themes across questions, computed in code.

@@ -28,9 +28,19 @@ function categoryFor(score: number): Category {
   return "Needs Work";
 }
 
+function dedupePhrases(phrases: string[]): string[] {
+  const seen = new Set<string>();
+  return phrases.filter((phrase) => {
+    const key = phrase.trim().toLocaleLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function fallbackSummary(totalScore: number, turns: FinalizedTurn[]): Omit<SessionSynthesisResult, "degraded" | "degradedComponents"> {
   const overallCategory = categoryFor(totalScore);
-  const strengths = turns.map((turn) => turn.whatWasGreat).filter(Boolean).slice(0, 3);
+  const strengths = dedupePhrases(turns.map((turn) => turn.whatWasGreat).filter(Boolean)).slice(0, 3);
   const growthAreas = turns.flatMap((turn) => turn.levelUpTips.map((tip) => tip.title)).slice(0, 4);
   return {
     totalScore,
@@ -54,6 +64,7 @@ export async function synthesizeSession(finalizedTurns: FinalizedTurn[]): Promis
     score: turn.score,
     category: turn.category,
     explanation: turn.explanation,
+    whatWasGreat: turn.whatWasGreat,
     levelUpTips: turn.levelUpTips,
   }));
   try {
@@ -66,7 +77,7 @@ export async function synthesizeSession(finalizedTurns: FinalizedTurn[]): Promis
     return {
       ...base,
       conclusion: raw.conclusion,
-      strengths: raw.strengths as string[],
+      strengths: dedupePhrases(raw.strengths as string[]),
       growthAreas: raw.growth_areas as string[],
       degraded: false,
       degradedComponents: []

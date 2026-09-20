@@ -30,3 +30,4 @@ Thumbs.db
 # Local backup video (large; keep on disk, not in git)
 *.mp4
 *.mov
+testdata/

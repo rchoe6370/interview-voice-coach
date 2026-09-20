@@ -1,22 +1,72 @@
 import { Router } from "express";
 import multer from "multer";
+import { openDatabase } from "../db.js";
+import { synthesize } from "../services/elevenlabs.js";
 import { probeOrFinalize } from "../services/gemini.js";
 import { scoreWithRules } from "../services/rulesBaseline.js";
 import { validateDecision } from "../guardrails/validate.js";
+import { nextQuestionIndex } from "../stateMachine/interview.js";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
+const db = openDatabase(process.env.DB_PATH ?? "./data/session.db");
 
-router.post("/:id/answer", upload.any(), async (req, res) => {
-  const transcript = typeof req.body.transcript === "string" && req.body.transcript.trim()
-    ? req.body.transcript.trim()
-    : "I worked with my team to improve the project and delivered the result on time.";
-  const turnNumber = Number(req.body.turn_number ?? 0);
+async function transcribeAudio(audio: Buffer, contentType: string): Promise<{ transcript: string; confidence: number | null; source: "stt" }> {
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+  if (!apiKey) throw new Error("ELEVENLABS_API_KEY is not set");
+  const form = new FormData();
+  form.append("file", new Blob([audio as unknown as BlobPart], { type: contentType }), "answer.webm");
+  form.append("model_id", "scribe_v1");
+  const response = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
+    method: "POST",
+    headers: { "xi-api-key": apiKey },
+    body: form,
+    signal: AbortSignal.timeout(12000)
+  });
+  if (!response.ok) throw new Error(`ElevenLabs STT failed with ${response.status}`);
+  const result = await response.json() as { text?: string; confidence?: number };
+  return { transcript: result.text?.trim() ?? "", confidence: result.confidence ?? null, source: "stt" };
+}
+
+router.post("/:id/answer", upload.single("audio"), async (req, res) => {
+  const session = db.prepare("SELECT id, role, current_question_index, status FROM sessions WHERE id = ?").get(req.params.id) as { id: string; role: string; current_question_index: number; status: string } | undefined;
+  if (!session) return res.status(404).json({ error: { code: "INVALID_SESSION", message: "Unknown session id", retryable: false } });
+
+  const questionIndex = Number(req.body.question_index);
+  const turnNumber = Number(req.body.turn_number);
+  const latestTurn = db.prepare("SELECT MAX(turn_number) AS turn_number FROM turns WHERE session_id = ? AND question_index = ? AND is_retry = 0").get(req.params.id, session.current_question_index) as { turn_number: number | null };
+  const expectedTurn = latestTurn.turn_number === null ? 0 : latestTurn.turn_number + 1;
+  if (questionIndex !== session.current_question_index || turnNumber !== expectedTurn) {
+    return res.status(409).json({
+      error: {
+        code: "STALE_TURN",
+        message: `Expected turn_number ${expectedTurn} for question ${session.current_question_index}.`,
+        retryable: false,
+        expected: { question_index: session.current_question_index, turn_number: expectedTurn }
+      }
+    });
+  }
+  if (!req.file) return res.status(400).json({ error: { code: "MALFORMED_AUDIO", message: "Audio file is required", retryable: false } });
+
+  let transcription: { transcript: string; confidence: number | null; source: "stt" };
+  try {
+    transcription = await transcribeAudio(req.file.buffer, req.file.mimetype || "audio/webm");
+  } catch {
+    return res.status(503).json({ error: { code: "SERVICE_UNAVAILABLE", message: "Speech transcription unavailable", retryable: true } });
+  }
+  const transcript = transcription.transcript;
+  if (transcription.confidence !== null && transcription.confidence < 0.6) {
+    return res.status(422).json({
+      error: { code: "LOW_CONFIDENCE_UNCONFIRMED", message: "Transcript confidence is too low to score", retryable: false },
+      transcript,
+      stt_confidence: transcription.confidence
+    });
+  }
   const input = {
-    role: String(req.body.role ?? "general"),
+    role: session.role,
     questionText: String(req.body.question_text ?? "Tell me about yourself."),
     dialogueTurns: [{ speaker: "candidate" as const, text: transcript }],
-    turnNumber: Number.isInteger(turnNumber) ? turnNumber : 0
+    turnNumber
   };
 
   let raw: unknown;
@@ -26,19 +76,33 @@ router.post("/:id/answer", upload.any(), async (req, res) => {
     raw = scoreWithRules(transcript, input.turnNumber);
   }
   const { decision, evaluator } = validateDecision(raw, transcript, input.turnNumber);
-  res.status(200).json({
+  let ttsAudioUrl: string | null = null;
+  const degradedComponents: string[] = evaluator === "fallback_rules" ? ["gemini"] : [];
+  if (decision.next_action === "ask_follow_up" && decision.follow_up_text) {
+    try {
+      ttsAudioUrl = (await synthesize(decision.follow_up_text)).audioUrl;
+    } catch {
+      degradedComponents.push("tts");
+    }
+  }
+  db.prepare(`
+    INSERT INTO turns (session_id, question_index, turn_number, transcript, transcript_source, stt_confidence, decision_json, evaluator, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(req.params.id, questionIndex, turnNumber, transcript, transcription.source, transcription.confidence, JSON.stringify(decision), evaluator, new Date().toISOString());
+
+  return res.status(200).json({
     session_id: req.params.id,
-    question_index: Number(req.body.question_index ?? 0),
+    question_index: questionIndex,
     turn_number: input.turnNumber,
     next_turn_number: decision.next_action === "ask_follow_up" ? input.turnNumber + 1 : null,
-    next_question_index: Number(req.body.question_index ?? 0) + (decision.next_action === "finalize_question" ? 1 : 0),
+    next_question_index: decision.next_action === "finalize_question" ? nextQuestionIndex(questionIndex) ?? questionIndex : questionIndex,
     transcript,
-    transcript_source: "stt",
-    stt_confidence: null,
+    transcript_source: transcription.source,
+    stt_confidence: transcription.confidence,
     decision: { ...decision, evaluator },
-    tts_audio_url: "",
-    degraded: evaluator === "fallback_rules",
-    degraded_components: evaluator === "fallback_rules" ? ["gemini"] : []
+    tts_audio_url: ttsAudioUrl,
+    degraded: degradedComponents.length > 0,
+    degraded_components: degradedComponents
   });
 });
 

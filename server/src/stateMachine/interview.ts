@@ -6,8 +6,8 @@ export const QUESTIONS = [
   "Why are you interested in this role?"
 ] as const;
 
-export function nextQuestionIndex(_currentIndex: number): number | null {
-  throw new Error("TODO: advance question index");
+export function nextQuestionIndex(currentIndex: number): number | null {
+  return currentIndex < QUESTIONS.length - 1 ? currentIndex + 1 : null;
 }
 
 export function retryTargetIndex(_scores: number[]): number {

@@ -12,7 +12,7 @@ Built for SteelHacks: **Best Use of Gemini API** (MLH) · **Out Loud** · **Seed
 4. After 5 questions: your total score, per-question breakdown, strengths, growth areas.
 5. Hit **Retry weakest answer**: hear your top tip, re-record, and see the before/after comparison. Original scores are never rewritten — retry is practice.
 
-Every turn also shows the **raw structured JSON** the model produced — no black box.
+Every turn also shows the **raw structured JSON** the model produced.
 
 ## Setup
 

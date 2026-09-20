@@ -118,6 +118,7 @@ router.post("/:id/answer", upload.single("audio"), async (req, res) => {
     next_turn_number: decision.next_action === "ask_follow_up" ? input.turnNumber + 1 : null,
     next_question_index: decision.next_action === "finalize_question" ? nextQuestionIndexValue ?? questionIndex : questionIndex,
     next_question: nextQuestion,
+    model_raw: JSON.stringify(raw),
     transcript,
     transcript_source: transcription.source,
     stt_confidence: transcription.confidence,

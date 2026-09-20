@@ -216,6 +216,7 @@ The finalizing response also includes the next question payload so the client ca
 }
 ```
 `next_question` is `null` after the fifth question. Its `tts_audio_url` may also be `null` when TTS is degraded; the client uses browser SpeechSynthesis in that case.
+Every answer response also includes `model_raw`, the exact JSON string returned before guardrail validation. When the rules baseline is used, it contains the baseline decision JSON and `evaluator` remains `"fallback_rules"`.
 
 ## `POST /session/:id/confirm-transcript`
 

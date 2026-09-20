@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { RecordButton } from "./components/RecordButton";
+import { DecisionJsonPanel } from "./components/DecisionJsonPanel";
+import { RetryCompare, RetryResult } from "./components/RetryCompare";
+import { SessionSummary, SummaryQuestion } from "./components/SessionSummary";
 import { ApiError, AnswerResponse, SessionStartResponse, startSession, submitAnswer } from "./lib/api";
 import { playAudio, speak } from "./lib/audio";
 
@@ -14,6 +17,10 @@ export function App() {
   const [error, setError] = useState("");
   const [backupVoice, setBackupVoice] = useState(false);
   const [complete, setComplete] = useState(false);
+  const [finalizedQuestions, setFinalizedQuestions] = useState<SummaryQuestion[]>([]);
+  const [summary, setSummary] = useState<Record<string, unknown> | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [retryResult, setRetryResult] = useState<RetryResult | null>(null);
 
   const announce = async (text: string, audioUrl: string | null) => {
     if (audioUrl) {
@@ -29,7 +36,7 @@ export function App() {
     setBusy(true); setError("");
     try {
       const next = await startSession(role);
-      setSession(next); setAnswer(null); setQuestionIndex(next.question_index); setQuestionText(next.question_text); setTurnNumber(0); setComplete(false);
+      setSession(next); setAnswer(null); setQuestionIndex(next.question_index); setQuestionText(next.question_text); setTurnNumber(0); setComplete(false); setSummary(null); setFinalizedQuestions([]); setRetrying(false); setRetryResult(null);
       await announce(next.question_text, next.tts_audio_url);
     } catch (caught) { setError(formatError(caught)); }
     finally { setBusy(false); }
@@ -40,14 +47,20 @@ export function App() {
     setBusy(true); setError("");
     try {
       const next = await submitAnswer(session.session_id, audio, questionIndex, turnNumber);
-      setAnswer(next);
-      if (next.decision.next_action === "ask_follow_up") {
-        if (next.next_turn_number !== null) setTurnNumber(next.next_turn_number);
-        if (next.decision.follow_up_text) await announce(next.decision.follow_up_text, next.tts_audio_url);
+      const answerWithRaw = next as AnswerResponse & { model_raw?: string; next_question?: { question_index: number; question_text: string; tts_audio_url: string | null } | null };
+      setAnswer(answerWithRaw);
+      if (answerWithRaw.decision.next_action === "finalize_question") {
+        setFinalizedQuestions((current) => [...current, { questionIndex, score: answerWithRaw.decision.score ?? 0, category: answerWithRaw.decision.category ?? "Needs Work", levelUpTips: answerWithRaw.decision.level_up_tips ?? [] }]);
+      }
+      if (answerWithRaw.decision.next_action === "ask_follow_up") {
+        if (answerWithRaw.next_turn_number !== null) setTurnNumber(answerWithRaw.next_turn_number);
+        if (answerWithRaw.decision.follow_up_text) await announce(answerWithRaw.decision.follow_up_text, answerWithRaw.tts_audio_url);
       } else {
-        const finalized = next as AnswerResponse & { next_question: { question_index: number; question_text: string; tts_audio_url: string | null } | null };
+        const finalized = answerWithRaw;
         if (!finalized.next_question) {
-          setComplete(true);
+          const response = await fetch(`/api/session/${session.session_id}/summary`);
+          if (!response.ok) throw new Error("Could not load the session summary.");
+          setSummary(await response.json()); setComplete(true);
           return;
         }
         setQuestionIndex(finalized.next_question.question_index);
@@ -73,17 +86,19 @@ export function App() {
           </label>
           <button type="button" onClick={() => void beginSession()} disabled={busy} style={{ padding: "14px 24px", border: 0, borderRadius: 8, background: "#d94a4a", color: "white", fontWeight: 800, fontSize: 16 }}>{busy ? "Starting..." : "Start interview"}</button>
         </section>
-      ) : (
-        <section>
+      ) : summary ? (retrying ? <RetryCompare sessionId={session.session_id} questionIndex={Number(summary.retry_target_index)} tipApplied={finalizedQuestions.find((question) => question.questionIndex === Number(summary.retry_target_index))?.levelUpTips[0]?.title ?? "Add concrete detail"} onBack={() => setRetrying(false)} onComplete={(result) => { setRetryResult(result); setRetrying(false); }} /> : <>
+          <SessionSummary totalScore={Number(summary.total_score)} overallCategory={String(summary.overall_category)} conclusion={String(summary.conclusion)} strengths={summary.strengths as string[]} growthAreas={summary.growth_areas as string[]} questions={finalizedQuestions} retryTargetIndex={Number(summary.retry_target_index)} certificateUnlocked={Boolean(summary.certificate_unlocked)} onRetry={() => setRetrying(true)} />
+          {retryResult && <RetryCompare sessionId={session.session_id} questionIndex={Number(summary.retry_target_index)} tipApplied={retryResult.tip_applied} result={retryResult} onBack={() => setRetryResult(null)} onComplete={() => undefined} />}
+        </>) : (<section>
           <p style={{ color: "#68737d" }}>Question {questionIndex + 1} of 5</p>
           <h2 style={{ fontSize: 32, color: "#173f5f", lineHeight: 1.2 }}>{questionText}</h2>
           {backupVoice && <p style={{ display: "inline-block", padding: "6px 10px", background: "#fff0d6", color: "#8a5712", borderRadius: 999, fontWeight: 700 }}>Backup voice</p>}
           {answer && <div style={{ margin: "28px 0", padding: 20, background: "#eef4f5", borderLeft: "4px solid #d94a4a" }}><strong>You said</strong><p>{answer.transcript}</p>{answer.decision.follow_up_text && <><strong>Follow-up</strong><p>{answer.decision.follow_up_text}</p></>}</div>}
           {answer?.decision.next_action === "finalize_question" && <div style={{ margin: "28px 0", padding: 20, background: "#fff0d6" }}><strong>Score: {answer.decision.score ?? "-"} · {answer.decision.category ?? "Unscored"}</strong><p>{answer.decision.evidence ? `Evidence: ${answer.decision.evidence}` : "No evidence captured."}</p>{answer.decision.level_up_tips?.map((tip) => <p key={tip.title}><strong>{tip.title}:</strong> {tip.detail}</p>)}</div>}
+          {answer && <DecisionJsonPanel modelRaw={(answer as AnswerResponse & { model_raw?: string }).model_raw ?? JSON.stringify(answer.decision)} evaluator={answer.decision.evaluator} nextAction={answer.decision.next_action} />}
           {complete ? <p style={{ fontSize: 20, fontWeight: 700 }}>Interview complete — summary screen lands in slice 7.</p> : <RecordButton disabled={busy} onRecordingComplete={(audio) => void handleRecording(audio)} onError={setError} />}
           {busy && <p>Processing your answer...</p>}
-        </section>
-      )}
+        </section>)}
       {error && <p role="alert" style={{ marginTop: 24, color: "#a12626", fontWeight: 700 }}>{error}</p>}
     </main>
   );

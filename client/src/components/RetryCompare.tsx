@@ -1,3 +1,40 @@
-export function RetryCompare() {
-  return <section>TODO: retry comparison</section>;
+import { useState } from "react";
+import { RecordButton } from "./RecordButton";
+import { speak } from "../lib/audio";
+
+interface RetryCompareProps {
+  sessionId: string;
+  questionIndex: number;
+  tipApplied: string;
+  result?: RetryResult | null;
+  onBack: () => void;
+  onComplete: (result: RetryResult) => void;
+}
+
+export interface RetryResult { original: { score: number; category: string }; retry: { score: number | null; category: string | null }; tip_applied: string; }
+
+export function RetryCompare({ sessionId, questionIndex, tipApplied, result = null, onBack, onComplete }: RetryCompareProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const retry = async (audio: Blob) => {
+    setBusy(true); setError("");
+    try {
+      const form = new FormData(); form.append("audio", audio, "retry.webm"); form.append("question_index", String(questionIndex));
+      const response = await fetch(`/api/session/${sessionId}/retry`, { method: "POST", body: form });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error?.message ?? `Retry failed (${response.status})`);
+      onComplete(body as RetryResult);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Retry failed."); }
+    finally { setBusy(false); }
+  };
+  return <section>
+    <h2>Retry weakest answer</h2>
+    {result ? <div><p><strong>Original:</strong> {result.original.score} · {result.original.category}</p><p><strong>Retry:</strong> {result.retry.score ?? "-"} · {result.retry.category ?? "-"}</p><p>Tip applied: {result.tip_applied}</p><p>Practice only — summary totals unchanged.</p><button type="button" onClick={onBack}>Back to summary</button></div> : <>
+    <p><strong>Tip to apply:</strong> {tipApplied}</p>
+    <button type="button" onClick={() => speak(tipApplied)} disabled={busy} style={{ marginBottom: 16 }}>Speak tip</button>
+    <RecordButton disabled={busy} onRecordingComplete={(audio) => void retry(audio)} onError={setError} />
+    {busy && <p>Processing retry...</p>}{error && <p role="alert">{error}</p>}
+    <button type="button" onClick={onBack} disabled={busy}>Back to summary</button>
+    </>}
+  </section>;
 }

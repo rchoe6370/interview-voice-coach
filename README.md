@@ -49,31 +49,19 @@ Never commit `.env`. `.env.example` lists the names with blank values.
 
 ## How it works
 
-```
-Browser mic → ElevenLabs STT → Gemini (probe or finalize?) → guardrails → ElevenLabs TTS
-                                                        ↓ fail
-                                              rules-baseline fallback (stamped, never silent)
-```
-
 - **Client** (React + Vite): push-to-talk recording, audio playback, interview state machine, summary/retry UI, raw-JSON reveal panel.
 - **Server** (Node + Express + TypeScript, SQLite): session state (authoritative), the answer pipeline, guardrail validation, session synthesis, retry logic.
 - **Gemini** (`gemini-3.6-flash` via AI Studio): one structured call per turn decides *probe vs. finalize*; on finalize it scores (0–100), categorizes (Excellent/Good/Satisfactory/Needs Work), cites verbatim evidence, and writes tips. A second call synthesizes the end-of-session summary.
 - **ElevenLabs**: `scribe_v1` transcribes answers; TTS voices every question and follow-up.
 
-### Engineering decisions that matter
+## AI Usage
 
-- **Structured output is a contract, not a hope.** Every model response is validated: unknown properties rejected, score/category bands cross-checked, evidence must be a verbatim transcript substring, tips capped and de-duplicated. Anything fails → deterministic rules baseline, stamped `evaluator: "fallback_rules"` so you can always tell who scored you.
-- **Degradation is in-band, not a crash.** If TTS fails, `tts_audio_url` comes back `null` and the client falls back to browser speech with a backup-voice badge. If Gemini 429s/503s, the request retries, then the baseline takes over — the interview never dies.
-- **Server state is authoritative.** The client asserts question/turn numbers; mismatches get `409 STALE_TURN` with the expected values for resync. The 2-turn probe cap is enforced in code, never trusted to the prompt.
-- **History is real.** The model sees the full ordered dialogue per question (transcript → follow-up asked → transcript), with an explicit no-repeat instruction — probed follow-ups reference what you actually said.
-- **Retry is practice-only.** One retry per session, weakest question only; original total, category, and certificate status are immutable.
+- Claude was used for ideation, program architecture, and code review
+- GitHub Copilot was used for implementation
 
-## Known limitations
-
-- Gemini free-tier quotas can 429 under heavy use; the app degrades to the rules baseline automatically (visible via the `fallback_rules` evaluator badge).
-- Very-low-confidence transcripts surface an error rather than a confirmation dialog (planned).
-- Local demo; no hosted deployment. SQLite database is local and gitignored.
+- Muse was used for ideation, system architecture, contract design, and code review.
+- GitHub Copilot was used for implementation — writing code against those contracts.
 
 ## Future work
 
-Confirmation-dialog UX for low-confidence audio · more question banks (system design, behavioral deep-dives) · progress tracking across sessions · the 12-dialogue / 8-routing-case eval harness with real measurements.
+more question banks (system design, behavioral deep-dives) · progress tracking across sessions

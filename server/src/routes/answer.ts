@@ -65,10 +65,24 @@ router.post("/:id/answer", upload.single("audio"), async (req, res) => {
   }
   const input = {
     role: session.role,
-    questionText: String(req.body.question_text ?? "Tell me about yourself."),
-    dialogueTurns: [{ speaker: "candidate" as const, text: transcript }],
+    questionText: questions[session.current_question_index].text,
+    dialogueTurns: [] as { speaker: "interviewer" | "candidate"; text: string }[],
     turnNumber
   };
+  const priorTurns = db.prepare(`
+    SELECT transcript, decision_json
+    FROM turns
+    WHERE session_id = ? AND question_index = ? AND is_retry = 0
+    ORDER BY turn_number ASC
+  `).all(req.params.id, session.current_question_index) as { transcript: string; decision_json: string }[];
+  for (const priorTurn of priorTurns) {
+    input.dialogueTurns.push({ speaker: "candidate", text: priorTurn.transcript });
+    const priorDecision = JSON.parse(priorTurn.decision_json) as { next_action?: string; follow_up_text?: string | null };
+    if (priorDecision.next_action === "ask_follow_up" && priorDecision.follow_up_text) {
+      input.dialogueTurns.push({ speaker: "interviewer", text: priorDecision.follow_up_text });
+    }
+  }
+  input.dialogueTurns.push({ speaker: "candidate", text: transcript });
 
   let raw: unknown;
   try {

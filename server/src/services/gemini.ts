@@ -9,6 +9,7 @@ import { GEMINI_DECISION_SCHEMA, GEMINI_SYNTHESIS_SCHEMA } from "./geminiSchema.
 
 const configuredModel = process.env.GEMINI_MODEL ?? "gemini-3.6-flash";
 const GEMINI_MODEL = configuredModel === "gemini-2.5-flash" ? "gemini-3.6-flash" : configuredModel;
+const NO_REPEAT_INSTRUCTION = "Never repeat a follow-up question already present in the dialogue history; choose a different follow-up or finalize.";
 const ENDPOINT = (model: string) =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
@@ -53,11 +54,11 @@ async function callGemini(
 
 export async function probeOrFinalize(input: FeedbackInput): Promise<unknown> {
   try {
-    return await callGemini(FEEDBACK_SYSTEM_PROMPT, buildFeedbackUserMessage(input), 700, 0.2, GEMINI_DECISION_SCHEMA);
+    return await callGemini(FEEDBACK_SYSTEM_PROMPT + "\n" + NO_REPEAT_INSTRUCTION, buildFeedbackUserMessage(input), 700, 0.2, GEMINI_DECISION_SCHEMA);
   } catch (error) {
     console.error("Gemini probe failed; retrying:", error);
     try {
-      return await callGemini(FEEDBACK_SYSTEM_PROMPT + "\n" + FEEDBACK_RETRY_APPENDIX, buildFeedbackUserMessage(input), 700, 0.2, GEMINI_DECISION_SCHEMA);
+      return await callGemini(FEEDBACK_SYSTEM_PROMPT + "\n" + NO_REPEAT_INSTRUCTION + "\n" + FEEDBACK_RETRY_APPENDIX, buildFeedbackUserMessage(input), 700, 0.2, GEMINI_DECISION_SCHEMA);
     } catch (retryError) {
       console.error("Gemini probe retry failed; caller will use fallback:", retryError);
       throw retryError;
